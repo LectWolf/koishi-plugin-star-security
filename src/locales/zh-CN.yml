@@ -1,0 +1,16 @@
+star-security:
+  antirobot:
+    check: |-
+      为了确保您不是机器人
+      请完成人机验证
+      请在{limit}分钟内输入以下内容
+      -- {code}
+    remind: |-
+      请输入以下内容进行人机验证
+      -- {code}
+    success: |-
+      人机验证成功!
+    kick: |-
+      由于QQ({qq})
+      长时间未通过人机验证
+      已踢出交流群
