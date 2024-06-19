@@ -24,7 +24,9 @@ export const BaseConfig: Schema<BaseConfig> = Schema.intersect([
       autoJoin: Schema.const(true).required(),
       groupList: Schema.array(String)
         .role("table")
-        .description("启用的群组列表(笨蛋就是QQ群号"),
+        .description(
+          "启用的群组列表 > 就是QQ群号 | 如果需要不同群不同审批词,右上角管理多份配置->添加新配置"
+        ),
       wordList: Schema.array(String)
         .role("table")
         .description("自动审批的单词"),
