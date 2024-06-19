@@ -1,6 +1,7 @@
 import { Context, Session, h } from "koishi";
 import { Config } from ".";
 
+export const reusable = true;
 export function apply(ctx: Context, config: Config) {
   // 入群处理
   ctx.on("guild-member-request", async (session) => {

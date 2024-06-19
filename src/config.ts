@@ -1,5 +1,4 @@
 import { Schema } from "koishi";
-import { join } from "path";
 
 // 基础设置
 export interface BaseConfig {
