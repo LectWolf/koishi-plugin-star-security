@@ -7,6 +7,7 @@ export function apply(ctx: Context, config: Config) {
   ctx.on("guild-member-request", async (session) => {
     if (!config.autoJoin) return;
 
+    console.log(session);
     const { _data: data } = session.event;
     // 自主加群
     if (data.sub_type === "add") {
@@ -16,7 +17,19 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
       // 包含单词通过
-      const allow = config.wordList.some((item) => data.comment.includes(item));
+      let comment = data.comment;
+      // 只取答案
+      const keyword = "答案：";
+      const commentIndex = data.comment.indexOf(keyword);
+      if (commentIndex !== -1) {
+        comment = data.comment.substring(commentIndex + keyword.length);
+      }
+
+      // 忽略大小写匹配
+      const allow = config.wordList.some((item) =>
+        comment.toLowerCase().includes(item.toLowerCase())
+      );
+
       if (allow) {
         session.bot.internal.setGroupAddRequest(data.flag, data.sub_type, true);
         return;
