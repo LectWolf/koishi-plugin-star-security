@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-star-security",
   "description": "给臭耀星做的进群审批",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "contributors": [
     "LectWolf <2242299685@qq.com>"
   ],
