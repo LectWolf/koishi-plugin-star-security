@@ -7,7 +7,6 @@ export function apply(ctx: Context, config: Config) {
   ctx.on("guild-member-request", async (session) => {
     if (!config.autoJoin) return;
 
-    console.log(session);
     const { _data: data } = session.event;
     // 自主加群
     if (data.sub_type === "add") {
@@ -98,7 +97,6 @@ async function waitcheck(
   allowTime: number,
   inkRemind: number
 ) {
-  console.log("测试", allowTime, inkRemind);
   return new Promise((resolve) => {
     // 当前时间
     let currentTime = Date.now();
