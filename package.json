@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-star-security",
   "description": "给臭耀星做的进群审批",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "contributors": [
     "LectWolf <2242299685@qq.com>"
   ],
@@ -25,7 +25,7 @@
   ],
   "koishi": {
     "description": {
-      "zh": "Onebot 进群审批&人机验证"
+      "zh": "给臭耀星做的进群审批"
     }
   },
   "devDependencies": {},
