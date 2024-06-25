@@ -38,11 +38,21 @@ export function apply(ctx: Context, config: Config) {
 
   // 进群欢迎 & 人机验证
   ctx.on("guild-member-added", async (session) => {
+    const { _data: data } = session.event;
+    if (data.operator_id != session.selfId && !config.alwaysWelcome) {
+      return;
+    }
+
     if (!config.autoJoin) return;
     // 最终的欢迎语
     let welcome: string;
     if (config.antiRobot) {
-      welcome = session.text("star-security.antirobot.success");
+      if (
+        data.operator_id == session.selfId ||
+        (data.operator_id != session.selfId && config.alwaysAnti)
+      ) {
+        welcome = session.text("star-security.antirobot.success");
+      }
     }
     if (config.welcomeText) {
       if (welcome) {
@@ -53,36 +63,41 @@ export function apply(ctx: Context, config: Config) {
     }
 
     if (config.antiRobot) {
-      const code = Math.floor(100000 + Math.random() * 900000);
-      // 发送验证消息
-      await session.send(
-        h.at(session.userId) +
-          "\r" +
-          session.text("star-security.antirobot.check", {
-            limit: config.allowTime,
-            code: code,
-          })
-      );
+      if (
+        data.operator_id == session.selfId ||
+        (data.operator_id != session.selfId && config.alwaysAnti)
+      ) {
+        const code = Math.floor(100000 + Math.random() * 900000);
+        // 发送验证消息
+        await session.send(
+          h.at(session.userId) +
+            "\r" +
+            session.text("star-security.antirobot.check", {
+              limit: config.allowTime,
+              code: code,
+            })
+        );
 
-      const check = await waitcheck(
-        ctx,
-        session,
-        code,
-        config.allowTime,
-        config.inkRemind
-      );
-      if (!check) {
-        await session.bot.internal
-          .setGroupKick(session.guildId, session.userId)
-          .then(
-            // 正确踢出后发送
-            await session.send(
-              session.text("star-security.antirobot.kick", {
-                qq: session.userId,
-              })
-            )
-          );
-        return;
+        const check = await waitcheck(
+          ctx,
+          session,
+          code,
+          config.allowTime,
+          config.inkRemind
+        );
+        if (!check) {
+          await session.bot.internal
+            .setGroupKick(session.guildId, session.userId)
+            .then(
+              // 正确踢出后发送
+              await session.send(
+                session.text("star-security.antirobot.kick", {
+                  qq: session.userId,
+                })
+              )
+            );
+          return;
+        }
       }
     }
     if (welcome) {
