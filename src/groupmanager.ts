@@ -85,7 +85,9 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
     }
-    await session.send(h.at(session.userId) + "\r" + welcome);
+    if (welcome) {
+      await session.send(h.at(session.userId) + "\r" + welcome);
+    }
   });
 }
 
