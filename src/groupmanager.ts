@@ -1,7 +1,92 @@
-import { Context, Session, h } from "koishi";
+import { Context, Session, h, Bot } from "koishi";
 import { Config } from ".";
 
 export const reusable = true;
+
+async function getAvailableGroup(groupList: string[], bot: Bot<Context, any>) {
+  for (const groupId of groupList) {
+    const groupInfo = await bot.internal.getGroupInfo(groupId);
+    if (groupInfo.member_count < groupInfo.max_member_count) {
+      return groupId;
+    }
+  }
+  return null;
+}
+
+async function allowGroupRequest(
+  session: Session,
+  config: Config,
+  data: any,
+  approve: boolean,
+  reason?: string
+) {
+  if (!approve) {
+    // 拒绝
+    if (!reason) {
+      // 换群
+      const availableGroup = await getAvailableGroup(
+        config.groupList,
+        session.bot
+      );
+      if (availableGroup) {
+        await session.bot.internal.setGroupAddRequest(
+          data.flag,
+          data.sub_type,
+          false,
+          `群已满,请加群:${availableGroup}`
+        );
+      } else {
+        await session.bot.internal.setGroupAddRequest(
+          data.flag,
+          data.sub_type,
+          false,
+          `群已满,请联系管理员`
+        );
+      }
+    } else {
+      await session.bot.internal.setGroupAddRequest(
+        data.flag,
+        data.sub_type,
+        approve,
+        reason
+      );
+    }
+    return;
+  }
+  const groupInfo = await session.bot.internal.getGroupInfo(
+    session.guildId,
+    true
+  );
+  if (groupInfo.member_count >= groupInfo.max_member_count) {
+    // 换群
+    const availableGroup = await getAvailableGroup(
+      config.groupList,
+      session.bot
+    );
+    if (availableGroup) {
+      await session.bot.internal.setGroupAddRequest(
+        data.flag,
+        data.sub_type,
+        false,
+        `群已满,请加新群`
+      );
+    } else {
+      await session.bot.internal.setGroupAddRequest(
+        data.flag,
+        data.sub_type,
+        false,
+        `群已满,当前无新群可用`
+      );
+    }
+  } else {
+    await session.bot.internal.setGroupAddRequest(
+      data.flag,
+      data.sub_type,
+      true
+    );
+  }
+}
+
 export function apply(ctx: Context, config: Config) {
   // 入群处理
   ctx.on("guild-member-request", async (session) => {
@@ -10,9 +95,18 @@ export function apply(ctx: Context, config: Config) {
     const { _data: data } = session.event;
     // 自主加群
     if (data.sub_type === "add") {
+      const groupInfo = await session.bot.internal.getGroupInfo(
+        session.guildId,
+        true
+      );
+      if (groupInfo.member_count >= groupInfo.max_member_count) {
+        // 群满换群
+        await allowGroupRequest(session, config, data, false);
+        return;
+      }
       // 没写单词就直接过
       if (!config.wordList || config.wordList.length == 0) {
-        session.bot.internal.setGroupAddRequest(data.flag, data.sub_type, true);
+        allowGroupRequest(session, config, data, true);
         return;
       }
       // 包含单词通过
@@ -30,8 +124,7 @@ export function apply(ctx: Context, config: Config) {
       );
 
       if (allow) {
-        session.bot.internal.setGroupAddRequest(data.flag, data.sub_type, true);
-        return;
+        allowGroupRequest(session, config, data, true);
       }
     }
   });
