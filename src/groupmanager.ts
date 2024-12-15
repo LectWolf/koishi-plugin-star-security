@@ -1,5 +1,6 @@
-import { Context, Session, h, Bot } from "koishi";
+import { Context, Session, h, Bot, Time } from "koishi";
 import { Config } from ".";
+import {} from "@koishijs/cache";
 
 export const reusable = true;
 
@@ -13,6 +14,11 @@ async function getAvailableGroup(groupList: string[], bot: Bot<Context, any>) {
   return null;
 }
 
+function debuglog(config: Config, type: string, text: string) {
+  if (config.debug) {
+    console.log(`[[${type}]: ${text}`);
+  }
+}
 async function allowGroupRequest(
   session: Session,
   config: Config,
@@ -28,22 +34,26 @@ async function allowGroupRequest(
         config.groupList,
         session.bot
       );
+
       if (availableGroup) {
+        debuglog(config, "进群审批处理", "拒绝 理由: 群已满,请加新群");
         await session.bot.internal.setGroupAddRequest(
           data.flag,
           data.sub_type,
           false,
-          `群已满,请加群:${availableGroup}`
+          `群已满,请加新群`
         );
       } else {
+        debuglog(config, "进群审批处理", "拒绝 理由: 群已满,当前无新群可用");
         await session.bot.internal.setGroupAddRequest(
           data.flag,
           data.sub_type,
           false,
-          `群已满,请联系管理员`
+          `群已满,当前无新群可用`
         );
       }
     } else {
+      debuglog(config, "进群审批处理", "拒绝 理由: " + reason);
       await session.bot.internal.setGroupAddRequest(
         data.flag,
         data.sub_type,
@@ -57,34 +67,35 @@ async function allowGroupRequest(
     session.guildId,
     true
   );
-  if (groupInfo.member_count >= groupInfo.max_member_count) {
-    // 换群
-    const availableGroup = await getAvailableGroup(
-      config.groupList,
-      session.bot
-    );
-    if (availableGroup) {
-      await session.bot.internal.setGroupAddRequest(
-        data.flag,
-        data.sub_type,
-        false,
-        `群已满,请加新群`
+  if (config.fullblock) {
+    if (groupInfo.member_count >= groupInfo.max_member_count) {
+      // 换群
+      const availableGroup = await getAvailableGroup(
+        config.groupList,
+        session.bot
       );
-    } else {
-      await session.bot.internal.setGroupAddRequest(
-        data.flag,
-        data.sub_type,
-        false,
-        `群已满,当前无新群可用`
-      );
+      if (availableGroup) {
+        debuglog(config, "进群审批处理", "拒绝 理由: 群已满,请加新群");
+        await session.bot.internal.setGroupAddRequest(
+          data.flag,
+          data.sub_type,
+          false,
+          `群已满,请加新群`
+        );
+      } else {
+        debuglog(config, "进群审批处理", "拒绝 理由: 群已满,当前无新群可用");
+        await session.bot.internal.setGroupAddRequest(
+          data.flag,
+          data.sub_type,
+          false,
+          `群已满,当前无新群可用`
+        );
+      }
+      return;
     }
-  } else {
-    await session.bot.internal.setGroupAddRequest(
-      data.flag,
-      data.sub_type,
-      true
-    );
   }
+  debuglog(config, "进群审批处理", "同意");
+  await session.bot.internal.setGroupAddRequest(data.flag, data.sub_type, true);
 }
 
 export function apply(ctx: Context, config: Config) {
@@ -95,27 +106,75 @@ export function apply(ctx: Context, config: Config) {
     const { _data: data } = session.event;
     // 自主加群
     if (data.sub_type === "add") {
+      // 取陌生人信息
+      const qqinfo = await session.bot.internal.getStrangerInfo(
+        data.user_id,
+        true
+      );
+      // 取加群信息
       const groupInfo = await session.bot.internal.getGroupInfo(
         session.guildId,
         true
       );
-      if (groupInfo.member_count >= groupInfo.max_member_count) {
-        // 群满换群
-        await allowGroupRequest(session, config, data, false);
-        return;
-      }
-      // 没写单词就直接过
-      if (!config.wordList || config.wordList.length == 0) {
-        allowGroupRequest(session, config, data, true);
-        return;
-      }
-      // 包含单词通过
+      // 取申请关键词
       let comment = data.comment;
-      // 只取答案
       const keyword = "答案：";
       const commentIndex = data.comment.indexOf(keyword);
       if (commentIndex !== -1) {
         comment = data.comment.substring(commentIndex + keyword.length);
+      }
+      debuglog(
+        config,
+        "进群审批",
+        `正在处理进群审批 群号:${session.guildId} QQ:${data.user_id} 关键词:${comment} 人数:${groupInfo.member_count}/${groupInfo.max_member_count}`
+      );
+
+      if (await ctx.cache.get(`star_security_${config.name}`, data.user_id)) {
+        // 缓存存在 -> 退群时间内
+        // 直接拒绝
+        debuglog(
+          config,
+          "进群审批",
+          "QQ:" + data.user_id + " 入群申请拒绝 原因: 退群后加群冷却"
+        );
+        await allowGroupRequest(session, config, data, false, "当前无法加群");
+        return;
+      }
+
+      if (config.fullblock) {
+        if (groupInfo.member_count >= groupInfo.max_member_count) {
+          // 群满换群
+          debuglog(
+            config,
+            "进群审批",
+            "QQ:" + data.user_id + " 入群申请拒绝 原因: 群已满"
+          );
+          await allowGroupRequest(session, config, data, false);
+          return;
+        }
+      }
+      if (qqinfo.level <= config.limitlevel && config.limitlevel != null) {
+        debuglog(
+          config,
+          "进群审批",
+          "QQ:" +
+            data.user_id +
+            " 入群申请不处理 原因: 等级低于 " +
+            config.limitlevel +
+            " 级"
+        );
+        // 不处理
+        return;
+      }
+      if (!config.wordList || config.wordList.length == 0) {
+        // 没写单词就直接过
+        debuglog(
+          config,
+          "进群审批",
+          "QQ:" + data.user_id + " 入群申请通过 原因: 未填写关键词名单"
+        );
+        allowGroupRequest(session, config, data, true);
+        return;
       }
 
       // 忽略大小写匹配
@@ -124,6 +183,11 @@ export function apply(ctx: Context, config: Config) {
       );
 
       if (allow) {
+        debuglog(
+          config,
+          "进群审批",
+          "QQ:" + data.user_id + " 入群申请通过 原因: 包含关键词"
+        );
         allowGroupRequest(session, config, data, true);
       }
     }
@@ -162,6 +226,11 @@ export function apply(ctx: Context, config: Config) {
       ) {
         const code = Math.floor(100000 + Math.random() * 900000);
         // 发送验证消息
+        debuglog(
+          config,
+          "人机验证",
+          "QQ:" + session.userId + " 等待验证 验证码: " + code
+        );
         await session.send(
           h.at(session.userId) +
             "\r" +
@@ -183,6 +252,11 @@ export function apply(ctx: Context, config: Config) {
             .setGroupKick(session.guildId, session.userId)
             .then(
               // 正确踢出后发送
+              debuglog(
+                config,
+                "人机验证",
+                "QQ:" + session.userId + " 未及时验证,踢出群聊"
+              ),
               await session.send(
                 session.text("star-security.antirobot.kick", {
                   qq: session.userId,
@@ -190,11 +264,31 @@ export function apply(ctx: Context, config: Config) {
               )
             );
           return;
+        } else {
+          debuglog(config, "人机验证", "QQ:" + session.userId + " 通过验证");
         }
       }
     }
     if (welcome) {
       await session.send(h.at(session.userId) + "\r" + welcome);
+    }
+  });
+
+  // 退群
+  ctx.on("guild-member-removed", async (session) => {
+    const { _data: data } = session.event;
+    if (config.limitleveljoin != 0 && config.limitleveljoin != null) {
+      debuglog(
+        config,
+        "退群处理",
+        "QQ:" + data.user_id + " 加入入群冷却 " + config.limitleveljoin + " 天"
+      );
+      await ctx.cache.set(
+        `star_security_${config.name}`,
+        data.user_id,
+        true,
+        config.limitleveljoin * Time.day
+      );
     }
   });
 }

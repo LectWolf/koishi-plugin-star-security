@@ -2,9 +2,14 @@ import { Schema } from "koishi";
 
 // 基础设置
 export interface BaseConfig {
+  name?: string;
+  debug?: boolean;
   autoJoin?: boolean;
   groupList?: string[];
+  fullblock?: boolean;
   wordList?: string[];
+  limitlevel?: number;
+  limitleveljoin?: number;
   alwaysWelcome?: boolean;
   welcomeText?: string;
 }
@@ -19,6 +24,8 @@ export interface AntiConfig {
 
 export const BaseConfig: Schema<BaseConfig> = Schema.intersect([
   Schema.object({
+    name: Schema.string().default("name").description("名称(标记给自己看的)"),
+    debug: Schema.boolean().description("调试模式").default(false),
     autoJoin: Schema.boolean().description("是否自动批准入群").default(false),
   }).description("基础设置"),
   Schema.union([
@@ -29,9 +36,16 @@ export const BaseConfig: Schema<BaseConfig> = Schema.intersect([
         .description(
           "启用的群组列表 > 就是QQ群号 | 如果需要不同群不同审批词,右上角管理多份配置->添加新配置"
         ),
+      fullblock: Schema.boolean().description("群满禁止入群").default(false),
       wordList: Schema.array(String)
         .role("table")
         .description("自动审批的单词"),
+      limitlevel: Schema.number()
+        .description("最低自动审批等级(QQ等级)")
+        .default(0),
+      limitleveljoin: Schema.number()
+        .description("退群后N天内禁止入群")
+        .default(0),
       alwaysWelcome: Schema.boolean()
         .description("无论谁批准都进行进群欢迎")
         .default(false),
