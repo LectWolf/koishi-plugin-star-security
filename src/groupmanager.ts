@@ -16,7 +16,7 @@ async function getAvailableGroup(groupList: string[], bot: Bot<Context, any>) {
 
 function debuglog(config: Config, type: string, text: string) {
   if (config.debug) {
-    console.log(`[[${type}]: ${text}`);
+    console.log(`[${type}]: ${text}`);
   }
 }
 async function allowGroupRequest(
@@ -153,7 +153,7 @@ export function apply(ctx: Context, config: Config) {
           return;
         }
       }
-      if (qqinfo.level <= config.limitlevel && config.limitlevel != null) {
+      if (qqinfo.level <= config.limitlevel && config.limitlevel != 0) {
         debuglog(
           config,
           "进群审批",
