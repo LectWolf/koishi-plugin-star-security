@@ -182,6 +182,21 @@ export function apply(ctx: Context, config: Config) {
         comment.toLowerCase().includes(item.toLowerCase())
       );
 
+      // 忽略大小写匹配 黑名单
+      const block = config.blackWordList.some((item) =>
+        comment.toLowerCase().includes(item.toLowerCase())
+      );
+
+      if (block) {
+        debuglog(
+          config,
+          "进群审批",
+          "QQ:" + data.user_id + " 入群申请拒绝 原因: 包含黑名单关键词"
+        );
+        allowGroupRequest(session, config, data, false, "拒绝入群");
+        return;
+      }
+
       if (allow) {
         debuglog(
           config,

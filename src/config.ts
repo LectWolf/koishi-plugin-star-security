@@ -8,6 +8,7 @@ export interface BaseConfig {
   groupList?: string[];
   fullblock?: boolean;
   wordList?: string[];
+  blackWordList?: string[];
   limitlevel?: number;
   limitleveljoin?: number;
   alwaysWelcome?: boolean;
@@ -40,6 +41,9 @@ export const BaseConfig: Schema<BaseConfig> = Schema.intersect([
       wordList: Schema.array(String)
         .role("table")
         .description("自动审批的单词"),
+      blackWordList: Schema.array(String)
+        .role("table")
+        .description("黑名单单词(遇到即拒绝)"),
       limitlevel: Schema.number()
         .description("最低自动审批等级(QQ等级)")
         .default(0),
