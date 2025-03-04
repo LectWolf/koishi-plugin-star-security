@@ -166,21 +166,6 @@ export function apply(ctx: Context, config: Config) {
         // 不处理
         return;
       }
-      if (!config.wordList || config.wordList.length == 0) {
-        // 没写单词就直接过
-        debuglog(
-          config,
-          "进群审批",
-          "QQ:" + data.user_id + " 入群申请通过 原因: 未填写关键词名单"
-        );
-        allowGroupRequest(session, config, data, true);
-        return;
-      }
-
-      // 忽略大小写匹配
-      const allow = config.wordList.some((item) =>
-        comment.toLowerCase().includes(item.toLowerCase())
-      );
 
       // 忽略大小写匹配 黑名单
       const block = config.blackWordList.some((item) =>
@@ -197,6 +182,22 @@ export function apply(ctx: Context, config: Config) {
         return;
       }
 
+      if (!config.wordList || config.wordList.length == 0) {
+        // 没写单词就直接过
+        debuglog(
+          config,
+          "进群审批",
+          "QQ:" + data.user_id + " 入群申请通过 原因: 未填写关键词名单"
+        );
+        allowGroupRequest(session, config, data, true);
+        return;
+      }
+
+      // 忽略大小写匹配
+      const allow = config.wordList.some((item) =>
+        comment.toLowerCase().includes(item.toLowerCase())
+      );
+
       if (allow) {
         debuglog(
           config,
@@ -211,6 +212,7 @@ export function apply(ctx: Context, config: Config) {
   // 进群欢迎 & 人机验证
   ctx.on("guild-member-added", async (session) => {
     const { _data: data } = session.event;
+    debuglog(config, "进群欢迎", "获取到QQ:" + data.user_id + " 进群信息");
     if (data.operator_id != session.selfId && !config.alwaysWelcome) {
       return;
     }
@@ -227,6 +229,11 @@ export function apply(ctx: Context, config: Config) {
       }
     }
     if (config.welcomeText) {
+      debuglog(
+        config,
+        "进群欢迎",
+        `正在准备欢迎文本 群号:${session.guildId} QQ:${data.user_id}`
+      );
       if (welcome) {
         welcome += "\r" + config.welcomeText;
       } else {
@@ -285,6 +292,7 @@ export function apply(ctx: Context, config: Config) {
       }
     }
     if (welcome) {
+      debuglog(config, "进群欢迎", `发送欢迎语`);
       await session.send(h.at(session.userId) + "\r" + welcome);
     }
   });
